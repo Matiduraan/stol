@@ -1,4 +1,5 @@
 var express = require('express');
+const { getMaxListeners } = require('./dbconnection.js');
 var app = express();
 var tools = require('./dbconnection.js');
 
@@ -15,7 +16,10 @@ let variableDePrueba = [
 ]
 
 app.get('/', function (req, res) {
-    res.send(crearUsuario(12345, 123456, 'CVU', 'CBU', 'bianmazarela@gmail.com', 1138054078));
+    res.send(dividirGastos(1));
+    //res.send(obtenerGastoTotalUsuario(1, 'matiduraan@gmail.com'));
+    //res.send(obtenerGastoTotalMesa(1));
+    //res.send(crearUsuario(12345, 123456, 'CVU', 'CBU', 'bianmazarela@gmail.com', 1138054078));
     //res.send(crearMesa('Mesa en node', variableDePrueba, 1));
     //res.send(cerrarConexion());
 })
@@ -122,53 +126,86 @@ function crearGasto(emailUsuario, monto, mesa) {
     });
 }
 
-function obtenerUsuariosDeMesa(idMesa) {
+function obtenerUsuariosDeMesa(idMesa, callback) {
+    var resultArray;
     tools.query("SELECT * FROM usuarioxmesa WHERE IdMesa = ?", [idMesa], function (err, resultado, fields) {
         if (err) throw err;
-        return resultado;
+        resultArray = Object.values(JSON.parse(JSON.stringify(resultado)));
+        //console.log(resultArray);
+        callback(null, resultArray);
     });
+
 }
 
-function obtenerGastoTotalMesa(idMesa) {
+function obtenerGastoTotalMesa(idMesa, callback) {
+    var resultArray;
     tools.query("SELECT SUM(Gasto) FROM gastosxmesa WHERE IdMesa = ?", [idMesa], function (err, resultado, fields) {
         if (err) throw err;
-        console.log(resultado);
+        callback(null, (resultado[0])['SUM(Gasto)']);
     });
 }
 
-/** 
-
-function Obtener_gasto_total_mesa($idMesa)
-{
-    require get_template_directory() . '/inc/connectdb.php';
-    $gastosDeLaMesa = mysqli_query($enlace, "SELECT Gasto FROM gastosxmesa WHERE IdMesa = $idMesa");
-    $row = mysqli_fetch_array($gastosDeLaMesa);
-    $gastoTotal = array_sum($row);
-    mysqli_close($enlace);
-    return $gastoTotal;
+function obtenerCantidadDeUsuarios(idMesa, callback) {
+    tools.query("SELECT IdUsuario FROM usuarioxmesa WHERE IdMesa = ?", [idMesa], function (err, resultado, fields) {
+        if (err) throw err;
+        callback(null, resultado.length);
+    });
 }
 
-function obtener_cantidad_de_usuarios($idMesa)
-{
-    require get_template_directory() . '/inc/connectdb.php';
-    //$resultado = mysqli_query($enlace, "SELECT Nombre FROM mesas WHERE EXISTS ( SELECT IdMesa FROM usuarioxmesa WHERE IdUsuario = $idUsuario AND EsInvitado = 0 AND IdMesa = mesas.IdMesa )");
-    $resultado = mysqli_query($enlace, "SELECT IdUsuario FROM usuarioxmesa WHERE IdMesa = $idMesa");
-    //var_dump($resultado);
-    mysqli_close($enlace);
-    return mysqli_num_rows($resultado);
+function obtenerGastoTotalUsuario(idMesa, emailUsuario, callback) {
+    var gastoTotal;
+    console.log(emailUsuario);
+    tools.query("SELECT SUM(Gasto) FROM gastosxmesa WHERE IdMesa = ? AND emailUsuario = ?", [idMesa, emailUsuario], function (err, gastosDeLaMesa, fields) {
+        //console.log(gastosDeLaMesa);
+        if (err) throw err;
+        if ((gastosDeLaMesa[0])['SUM(Gasto)'] == null) {
+            gastoTotal = 0;
+        } else {
+            gastoTotal = (gastosDeLaMesa[0])['SUM(Gasto)'];
+        }
+        callback(null, gastoTotal);
+
+    });
 }
 
-function obtener_gasto_total_del_usuario($idMesa, $emailUsuario)
-{
-    require get_template_directory() . '/inc/connectdb.php';
-    $gastosDeLaMesa = mysqli_query($enlace, "SELECT Gasto FROM gastosxmesa WHERE IdMesa = $idMesa AND emailUsuario = '$emailUsuario'");
-    if (mysqli_num_rows($gastosDeLaMesa) > 0) {
-        $row = mysqli_fetch_array($gastosDeLaMesa);
-        $gastoTotal = array_sum($row);
+function obtenerEmailUsuario(idUsuario, esInvitado, callback) {
+    var emailUsuario;
+    if (esInvitado == 1) {
+        tools.query("SELECT Email FROM invitados WHERE IdInvitado = ?", [idUsuario], function (err, resultado, fields) {
+            if (err) throw err;
+            emailUsuario = ((resultado[0])['Email']);
+            console.log(emailUsuario);
+            callback(null, emailUsuario);
+        });
     } else {
-        $gastoTotal = 0;
+        tools.query("SELECT Email FROM usuarios WHERE IdUsuario = ?", [idUsuario], function (err, resultado, fields) {
+            if (err) throw err;
+            emailUsuario = ((resultado[0])['Email']);
+            callback(null, emailUsuario);
+        });
     }
+}
 
-    mysqli_close($enlace);
-    return $gastoTotal;
-} **/
+function dividirGastos(idMesa) {
+    var deudaPorUsuario;
+    obtenerUsuariosDeMesa(idMesa, function (err, usuariosDeLaMesa) {
+        obtenerCantidadDeUsuarios(idMesa, function (err, cantidadDeUsuariosEnLaMesa) {
+            obtenerGastoTotalMesa(idMesa, function (err, deudaTotalDeLaMesa) {
+                usuariosDeLaMesa.forEach(integrante => {
+                    var deudaIndividual = (deudaTotalDeLaMesa / cantidadDeUsuariosEnLaMesa) * (-1);
+                    var idUsuario = integrante['IdUsuario'];
+                    obtenerEmailUsuario(idUsuario, integrante['EsInvitado'], function (err, emailUsuario) {
+                        obtenerGastoTotalUsuario(idMesa, emailUsuario, function (err, gastoTotal) {
+                            deudaIndividual += gastoTotal;
+                            console.log(gastoTotal);
+                            //var aInsertar = [emailUsuario => deudaIndividual];
+                            tools.query("UPDATE usuarioxmesa SET Gasto = ? WHERE IdUsuario = ? AND EsInvitado = ? AND IdMesa = ?", [deudaIndividual, idUsuario, integrante['EsInvitado'], idMesa], function (err, resultado, fields) {
+                                if (err) throw err;
+                            });
+                        });
+                    });
+                })
+            });
+        });
+    });
+}
