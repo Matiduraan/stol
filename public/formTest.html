@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+    <script type="text/javascript">
+        $(document).ready(function () {
+            //const serialize_form = form => JSON.stringify(form).serializeArray();
+            const serialize_form = form => JSON.stringify(
+                Array.from(new FormData(form).entries())
+                    .reduce((m, [key, value]) => Object.assign(m, { [key]: value }), {})
+            );
+            $('#register_form').on('submit', function (event) {
+                event.preventDefault();
+                console.log($("#register_form"));
+
+                const json = serialize_form(this);
+                console.log(json);
+
+                fetch('http://localhost:3000/prueba', {
+                    method: 'POST',
+                    headers: {
+                        'Content-type': 'application/json'
+                    },
+                    body: json
+                })
+                    .then(res => res.text())
+                    .then(data => {
+                        // mostrar mensaje de error/éxito
+                        //alert(data);
+                        console.log(data);
+                    });
+
+                /*$.ajax({
+                    type: 'POST',
+                    url: 'http://localhost:3000/prueba',
+                    dataType: 'json',
+                    data: json,
+                    contentType: 'application/json',
+                    headers: 'Access-Control-Allow-Origin',
+                    success: function (response) {
+                        console.log(response);
+                    }
+                });*/
+
+                return false;
+            });
+        });
+    </script>
+</head>
+
+<body>
+    <form action='http://localhost:3000/prueba' method="POST" id="register_form">
+        <div class="container">
+            <h1>Register</h1>
+            <p>Please fill in this form to create an account.</p>
+            <hr>
+
+            <label for="CBU"><b>CBU</b></label>
+            <input type="number" placeholder="Enter CBU" name="CBU" id="CBU" required>
+
+            <label for="CVU"><b>CVU</b></label>
+            <input type="number" placeholder="Enter CVU" name="CVU" id="CVU" required>
+
+            <label for="AliasCBU"><b>AliasCBU</b></label>
+            <input type="text" placeholder="Enter AliasCBU" name="AliasCBU" id="AliasCBU" required>
+
+            <label for="email"><b>Email</b></label>
+            <input type="text" placeholder="Enter Email" name="email" id="email" required>
+
+            <label for="telefono"><b>Telefono</b></label>
+            <input type="number" placeholder="Enter Password" name="telefono" id="telefono" required>
+
+            <label for="AliasCVU"><b>Alias CVU</b></label>
+            <input type="text" placeholder="Repeat Password" name="AliasCVU" id="AliasCVU" required>
+            <hr>
+
+            <p>By creating an account you agree to our <a href="#">Terms & Privacy</a>.</p>
+            <button type="Submit" class="registerbtn">Register</button>
+        </div>
+
+        <div class="container signin">
+            <p>Already have an account? <a href="#">Sign in</a>.</p>
+        </div>
+    </form>
+</body>
+
+</html>

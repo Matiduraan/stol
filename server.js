@@ -1,42 +1,163 @@
 var express = require('express');
+var fs = require('fs');
+var path = require('path');
 const { getMaxListeners } = require('./dbconnection.js');
-var app = express();
+const bodyParser = require('body-parser');
 var tools = require('./dbconnection.js');
+const { send } = require('process');
+const res = require('express/lib/response');
+
+var app = express();
+
+app.use(express.urlencoded());
+app.use(express.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.static('./public'));
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Headers', 'Authorization, X-API-KEY, Origin, X-Requested-With, Content-Type, Accept, Access-Control-Allow-Request-Method');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+    res.header('Allow', 'GET, POST, OPTIONS, PUT, DELETE');
+    next();
+});
+
 
 let variableDePrueba = [
     {
-        'email': "matiduraan@gmail.com"
+        'Email': "matiduraan@gmail.com"
     },
     {
-        'email': "bianmazarela@gmail.com"
+        'Email': "bianmazarela@gmail.com",
+        'Nombre': 'Bianca',
+        'Apellido': 'Mazzarella'
     },
     {
-        'email': "maildeprueba@gmail.com"
+        'Email': "maildeprueba@gmail.com",
+        'Nombre': 'Mail',
+        'Apellido': 'DePrueba'
     },
 ]
 
 app.get('/', function (req, res) {
-    res.send(dividirGastos(1));
+    res.send(dividirGastos(16));
     //res.send(obtenerGastoTotalUsuario(1, 'matiduraan@gmail.com'));
     //res.send(obtenerGastoTotalMesa(1));
-    //res.send(crearUsuario(12345, 123456, 'CVU', 'CBU', 'bianmazarela@gmail.com', 1138054078));
+    /*var nuevoUsuario = {
+        "CVU": 12345,
+        "CBU": 123456,
+        "AliasCBU": 'CBU',
+        "AliasCVU": 'CVU',
+        "Email": 'martin@gmail.com',
+        "Telefono": 11234567
+    }*/
+    //res.send(crearUsuario(nuevoUsuario));
     //res.send(crearMesa('Mesa en node', variableDePrueba, 1));
     //res.send(cerrarConexion());
-})
+
+    //res.setHeader('Content-type', 'text/html');
+    //res.sendFile(__dirname + '/public/formTest.html');
+});
+
+app.get('/misMesas', function (req, res) {
+    //console.log(req.query['idMesa']);
+    obtenerMesasDelUsuario(req.query['idMesa'], function (err, mesas) {
+        res.send(mesas);
+    });
+
+});
+
+app.post('/crearUsuario', (req, res) => {
+    delete req.body['Password'];
+    //console.log(req.body);
+    crearUsuario(req.body, function (err, msg) {
+        res.send(msg);
+    });
+
+    //res.setHeader('Content-Type', 'text/html');
+    //res.send('Usuario creado correctamente');
+});
+
+app.get('/mesas', function (req, res) {
+    //  res.send('profile with id' + req.params.id)
+    //var mesaBuscada = req.query['idMesa'];
+    obtenerInfoMesa(req.query['idMesa'], function (err, mesa) {
+        res.send(mesa);
+    });
+
+});
+
+app.get('/gastos', function (req, res) {
+    //  res.send('profile with id' + req.params.id)
+    //var mesaBuscada = req.query['idMesa'];
+    obtenerGastosMesa(req.query['idMesa'], function (err, gastos) {
+        res.send(gastos);
+    });
+});
+
+app.get('/eliminarUsuario', function (req, res) {
+    //  res.send('profile with id' + req.params.id)
+    //var mesaBuscada = req.query['idMesa'];
+    /*obtenerGastosMesa(req.query['idMesa'], function (err, gastos) {
+        res.send(gastos);
+    });*/
+    eliminarUsuarioDeMesa(req.query['idMesa'], req.query['emailAEliminar'], function (err, msg) {
+        res.send(msg);
+    });
+});
+
+app.get('/usuarioxmail', function (req, res) {
+    //  res.send('profile with id' + req.params.id)
+    //var mesaBuscada = req.query['idMesa'];
+    obtenerUsuarioPorEmail(req.query['emailUsuario'], function (err, usuario) {
+        res.send(usuario);
+    });
+});
+
+app.get('/usuariosxmesa', function (req, res) {
+    //  res.send('profile with id' + req.params.id)
+    //var mesaBuscada = req.query['idMesa'];
+    obtenerUsuariosxMesa(req.query['idMesa'], function (err, usuarios) {
+        res.send(usuarios);
+    });
+});
+
+app.get('/actNombreMesa', function (req, res) {
+    /*obtenerUsuariosxMesa(req.query['idMesa'], function (err, usuarios) {
+        res.send(usuarios);
+    });*/
+    actualizarNombreMesa(req.query['idMesa'], req.query['nuevoNombre'], function (err, msg) {
+        //console.log('Actualiza el nombre');
+        res.send(msg);
+    });
+});
+
+app.get('/actGasto', function (req, res) {
+    actualizarGasto(req.query['idGastoXMesa'], req.query['nuevaInfo'], req.query['idMesa'], function (err, msg) {
+        //console.log('Actualiza el nombre');
+        res.send(msg);
+    });
+});
+
+app.get('/agregarUsuario', function (req, res) {
+    agregarUsuarioAMesa(req.query['usuarioEnMesa'], req.query['infoUsuario'], function (err, msg) {
+        //console.log('Actualiza el nombre');
+        res.send(msg);
+    });
+});
+
+app.get('/agregarGasto', function (req, res) {
+    obtenerEmailUsuario(req.query['idUsuario'], function (err, email) {
+        crearGasto(req.query['nuevoGasto'], email, function (err, msg) {
+            //console.log('Actualiza el nombre');
+            res.send(msg);
+        });
+    })
+
+});
+
 tools.connect();
 app.listen(3000);
 
-function probarConexion() {
-    //var gastosDeLaMesa = mysqli_query(tools.connection, "SELECT Gasto FROM gastosxmesa WHERE IdMesa = $idMesa");
-    var resultadoQuery
-    tools.query("SELECT Gasto FROM gastosxmesa", function (err, result, fields) {
-        if (err) throw err;
-        resultadoQuery = result;
-        console.log(resultadoQuery);
-    });
-    return resultadoQuery;
-
-}
 
 function crearMesa(nombreMesa, integrantes, idUsuarioCreador) {
     var idMesa;
@@ -45,34 +166,30 @@ function crearMesa(nombreMesa, integrantes, idUsuarioCreador) {
         idMesa = result.insertId;
     });
     integrantes.forEach(integrante => {
-        var email = integrante['email'];
+        var email = integrante['Email'];
         var invitado_id;
+        //console.log(email);
         tools.query("SELECT * FROM `usuarios` WHERE Email = ?", [email], function (err, enLaDB, fields) {
             if (err) throw err;
             if (enLaDB.length == 0) {
-                tools.query("SELECT * FROM `invitados` WHERE Email = ?", [email], function (err, invitadoEnLaDB, fields) {
+                tools.query("SELECT UUID()", function (err, result, fields) {
                     if (err) throw err;
-
-                    if (invitadoEnLaDB.length == 0) {
-                        tools.query("INSERT INTO invitados (email) VALUES (?)", [email], function (err, invitadoEnLaDB2, fields) {
-                            if (err) throw err;
-                            invitado_id = invitadoEnLaDB2.insertId;
-                        });
-
-                    } else {
-                        var row = invitadoEnLaDB[0];
-                        invitado_id = row.IdInvitado;
-                    }
-                    tools.query("INSERT INTO usuarioxmesa (IdUsuario,IdMesa,EsInvitado) VALUES ( ? , ?, 1 )", [invitado_id, idMesa], function (err, invitadoEnLaDB, fields) {
+                    var UUID = (result[0])['UUID()'];
+                    tools.query("INSERT INTO usuarios SET IdUsuario = ?, ?", [UUID, integrante], function (err, insertado, fields) {
                         if (err) throw err;
+                        usuario = UUID;
+                        tools.query("INSERT INTO usuarioxmesa (emailUsuario,IdMesa) VALUES ( ? , ?)", [email, idMesa], function (err, invitadoEnLaDB, fields) {
+                            if (err) throw err;
+                        });
                     });
                 });
             } else {
-                var usuario = enLaDB[0];
-                tools.query("INSERT INTO usuarioxmesa (IdUsuario,IdMesa,EsInvitado) VALUES ( ? , ?, 0 )", [usuario.IdUsuario, idMesa], function (err, invitadoEnLaDB, fields) {
+                var usuario = enLaDB[0].IdUsuario;
+                tools.query("INSERT INTO usuarioxmesa (emailUsuario,IdMesa) VALUES ( ? , ?)", [email, idMesa], function (err, invitadoEnLaDB, fields) {
                     if (err) throw err;
                 });
             }
+
         });
     });
 
@@ -84,45 +201,29 @@ function cerrarConexion() {
 }
 
 /**bianmazarela@gmail.com*/
-function obtenerMesasDelUsuario(idUsuario) {
-    tools.query("SELECT Nombre FROM mesas INNER JOIN usuarioxmesa ON IdUsuario = ? AND EsInvitado = 0 AND usuarioxmesa.IdMesa = mesas.IdMesa", [idUsuario], function (err, resultado, fields) {
+function obtenerMesasDelUsuario(idUsuario, callback) {
+    obtenerEmailUsuario(idUsuario, function (err, email) {
+        tools.query("SELECT * FROM mesas INNER JOIN usuarioxmesa ON emailUsuario = ? AND usuarioxmesa.IdMesa = mesas.IdMesa", [email], function (err, resultado, fields) {
+            if (err) throw err;
+            callback(null, resultado);
+        });
+    })
+
+}
+
+function crearUsuario(nuevoUsuario, callback) {
+    var msg;
+    tools.query("INSERT INTO usuarios SET ? ON DUPLICATE KEY UPDATE IdUsuario = ?, Nombre = ?, Apellido = ?, CVU = ?, CBU = ?, AliasCVU = ?, AliasCBU = ?", [nuevoUsuario], function (err, insertado, fields) {
         if (err) throw err;
-        return resultado;
+        callback(null, 'Cuenta creada con exito');
     });
 }
 
-function crearUsuario(CVU, CBU, AliasCvu, AliasCbu, email, telefono) {
-    tools.query("SELECT IdUsuario FROM usuarios WHERE email = ?", [email], function (err, resultado, fields) {
+function crearGasto(nuevoGasto, email, callback) {
+    tools.query("INSERT INTO gastosxmesa SET emailUsuario = ?, ?", [email, nuevoGasto], function (err, resultado, fields) {
         if (err) throw err;
-        console
-        if (resultado.length == 0) {
-            var idAgregado;
-
-            tools.query("INSERT INTO usuarios (CVU,CBU,AliasCVU,AliasCBU,Email,Telefono) VALUES ( ?, ?, ?, ?, ?, ? )", [CVU, CBU, AliasCvu, AliasCbu, email, telefono], function (err, insertado, fields) {
-                if (err) throw err;
-                idAgregado = insertado.insertId;
-                tools.query("UPDATE usuarioxmesa INNER JOIN invitados ON usuarioxmesa.IdUsuario = invitados.IdInvitado AND usuarioxmesa.EsInvitado = 1 SET EsInvitado = 0, IdUsuario = ? ", [idAgregado], function (err, resultado, fields) {
-                    if (err) throw err;
-                    console.log(resultado);
-                });
-                eliminarInvitado(email);
-            });
-            return 'ok';
-        } else {
-            return 'La cuenta ya existe';
-        }
-    });
-}
-
-function eliminarInvitado(emailInvitado) {
-    tools.query("DELETE FROM invitados WHERE email = ?", [emailInvitado], function (err, resultado, fields) {
-        if (err) throw err;
-    });
-}
-
-function crearGasto(emailUsuario, monto, mesa) {
-    tools.query("INSERT INTO gastosxmesa (Gasto,IdMesa,emailUsuario) VALUES (?,?,?)", [monto, mesa, emailUsuario], function (err, resultado, fields) {
-        if (err) throw err;
+        dividirGastos(nuevoGasto['IdMesa']);
+        callback(null, { 'msg': 'Success' });
     });
 }
 
@@ -141,12 +242,13 @@ function obtenerGastoTotalMesa(idMesa, callback) {
     var resultArray;
     tools.query("SELECT SUM(Gasto) FROM gastosxmesa WHERE IdMesa = ?", [idMesa], function (err, resultado, fields) {
         if (err) throw err;
+        //console.log(resultado);
         callback(null, (resultado[0])['SUM(Gasto)']);
     });
 }
 
 function obtenerCantidadDeUsuarios(idMesa, callback) {
-    tools.query("SELECT IdUsuario FROM usuarioxmesa WHERE IdMesa = ?", [idMesa], function (err, resultado, fields) {
+    tools.query("SELECT emailUsuario FROM usuarioxmesa WHERE IdMesa = ?", [idMesa], function (err, resultado, fields) {
         if (err) throw err;
         callback(null, resultado.length);
     });
@@ -154,7 +256,7 @@ function obtenerCantidadDeUsuarios(idMesa, callback) {
 
 function obtenerGastoTotalUsuario(idMesa, emailUsuario, callback) {
     var gastoTotal;
-    console.log(emailUsuario);
+    //console.log(emailUsuario);
     tools.query("SELECT SUM(Gasto) FROM gastosxmesa WHERE IdMesa = ? AND emailUsuario = ?", [idMesa, emailUsuario], function (err, gastosDeLaMesa, fields) {
         //console.log(gastosDeLaMesa);
         if (err) throw err;
@@ -168,44 +270,106 @@ function obtenerGastoTotalUsuario(idMesa, emailUsuario, callback) {
     });
 }
 
-function obtenerEmailUsuario(idUsuario, esInvitado, callback) {
-    var emailUsuario;
-    if (esInvitado == 1) {
-        tools.query("SELECT Email FROM invitados WHERE IdInvitado = ?", [idUsuario], function (err, resultado, fields) {
-            if (err) throw err;
-            emailUsuario = ((resultado[0])['Email']);
-            console.log(emailUsuario);
-            callback(null, emailUsuario);
-        });
-    } else {
-        tools.query("SELECT Email FROM usuarios WHERE IdUsuario = ?", [idUsuario], function (err, resultado, fields) {
-            if (err) throw err;
-            emailUsuario = ((resultado[0])['Email']);
-            callback(null, emailUsuario);
-        });
-    }
+function obtenerEmailUsuario(idUsuario, callback) {
+    console.log(idUsuario);
+    tools.query("SELECT Email FROM usuarios WHERE IdUsuario = ?", [idUsuario], function (err, resultado, fields) {
+        if (err) throw err;
+        var emailUsuario = ((resultado[0])['Email']);
+        callback(null, emailUsuario);
+    });
 }
 
 function dividirGastos(idMesa) {
-    var deudaPorUsuario;
     obtenerUsuariosDeMesa(idMesa, function (err, usuariosDeLaMesa) {
         obtenerCantidadDeUsuarios(idMesa, function (err, cantidadDeUsuariosEnLaMesa) {
             obtenerGastoTotalMesa(idMesa, function (err, deudaTotalDeLaMesa) {
                 usuariosDeLaMesa.forEach(integrante => {
                     var deudaIndividual = (deudaTotalDeLaMesa / cantidadDeUsuariosEnLaMesa) * (-1);
-                    var idUsuario = integrante['IdUsuario'];
-                    obtenerEmailUsuario(idUsuario, integrante['EsInvitado'], function (err, emailUsuario) {
-                        obtenerGastoTotalUsuario(idMesa, emailUsuario, function (err, gastoTotal) {
-                            deudaIndividual += gastoTotal;
-                            console.log(gastoTotal);
-                            //var aInsertar = [emailUsuario => deudaIndividual];
-                            tools.query("UPDATE usuarioxmesa SET Gasto = ? WHERE IdUsuario = ? AND EsInvitado = ? AND IdMesa = ?", [deudaIndividual, idUsuario, integrante['EsInvitado'], idMesa], function (err, resultado, fields) {
-                                if (err) throw err;
-                            });
+                    //console.log(deudaIndividual);
+                    var emailUsuario = integrante['emailUsuario'];
+                    obtenerGastoTotalUsuario(idMesa, emailUsuario, function (err, gastoTotal) {
+                        deudaIndividual += gastoTotal;
+                        //console.log(gastoTotal);
+                        //var aInsertar = [emailUsuario => deudaIndividual];
+                        tools.query("UPDATE usuarioxmesa SET Gasto = ? WHERE emailUsuario = ? AND IdMesa = ?", [deudaIndividual, emailUsuario, idMesa], function (err, resultado, fields) {
+                            if (err) throw err;
                         });
                     });
                 })
             });
         });
+    });
+}
+
+function obtenerInfoMesa(idMesa, callback) {
+    tools.query("SELECT * FROM mesas WHERE IdMesa = ?", [idMesa], function (err, resultado, fields) {
+        if (err) throw err;
+        callback(null, resultado[0]);
+    });
+}
+
+function obtenerGastosMesa(idMesa, callback) {
+    tools.query("SELECT gastosxmesa.*,usuarios.* FROM gastosxmesa JOIN usuarios on gastosxmesa.emailUsuario = usuarios.Email AND gastosxmesa.IdMesa = ?", [idMesa], function (err, resultado, fields) {
+        if (err) throw err;
+        callback(null, resultado);
+    });
+}
+
+function obtenerUsuarioPorEmail(emailUsuario, callback) {
+    //console.log(emailUsuario);
+    tools.query("SELECT IdUsuario,Nombre,Apellido FROM usuarios WHERE Email = ?", [emailUsuario], function (err, resultado, fields) {
+        if (err) throw err;
+        callback(null, resultado[0]);
+    });
+}
+
+function obtenerUsuariosxMesa(idMesa, callback) {
+    tools.query("SELECT usuarioxmesa.Gasto,usuarios.* FROM usuarioxmesa JOIN usuarios on usuarioxmesa.emailUsuario = usuarios.Email AND usuarioxmesa.IdMesa = ?", [idMesa], function (err, resultado, fields) {
+        if (err) throw err;
+        //console.log(resultado);
+        callback(null, resultado);
+    });
+}
+
+function actualizarNombreMesa(idMesa, nuevoNombre, callback) {
+    tools.query("UPDATE mesas SET Nombre = ? WHERE IdMesa = ?", [nuevoNombre, idMesa], function (err, resultado, fields) {
+        if (err) throw err;
+        callback(null, { 'msg': 'Success' });
+    });
+}
+
+function eliminarUsuarioDeMesa(idMesa, emailUsuario, callback) {
+    tools.query("DELETE FROM usuarioxmesa WHERE IdMesa = ? AND emailUsuario = ?", [idMesa, emailUsuario], function (err, resultado, fields) {
+        if (err) throw err;
+        tools.query("DELETE FROM gastosxmesa WHERE IdMesa = ? AND emailUsuario = ?", [idMesa, emailUsuario], function (err, resultado, fields) {
+            if (err) throw err;
+            dividirGastos();
+            callback(null, { 'msg': 'Success' });
+        });
+    });
+}
+
+function actualizarGasto(idGastoxMesa, nuevaInfo, idMesa, callback) {
+    tools.query("UPDATE gastosxmesa SET Gasto = ?, Descripcion = ? WHERE IdGastoXMesa = ?", [nuevaInfo['Gasto'], nuevaInfo['Descripcion'], idGastoxMesa], function (err, resultado, fields) {
+        if (err) {
+            throw err
+        } else {
+            dividirGastos(idMesa);
+            callback(null, { 'msg': 'Success' });
+        };
+
+    });
+}
+
+function agregarUsuarioAMesa(usuarioEnMesa, usuario, callback) {
+    tools.query("INSERT INTO usuarioxmesa SET ?", [usuarioEnMesa], function (err, resultado, fields) {
+        if (err) { throw err } else {
+            tools.query("INSERT INTO usuarios SET IdUsuario = UUID(), ? ON DUPLICATE KEY UPDATE IdUsuario=IdUsuario", [usuario], function (err, resultado, fields) {
+                if (err) { throw err } else {
+                    dividirGastos(usuarioEnMesa['idMesa']);
+                    callback(null, { 'msg': 'Success' });
+                }
+            });
+        }
     });
 }
